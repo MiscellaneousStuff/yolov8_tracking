@@ -50,9 +50,8 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, Float, Identity
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
-Base = declarative_base()
-engine = create_engine("sqlite:///main.db", echo=True)
 
+Base = declarative_base()
 class Detection(Base):
     __tablename__ = "detection"
     id       = Column(Integer, primary_key=True, autoincrement=True)
@@ -77,11 +76,6 @@ class Detection(Base):
         label:  {self.label}
         conf:   {self.conf}
         det_id: {self.det_id}"""
-
-Base.metadata.create_all(engine)
-Session = sessionmaker()
-Session.configure(bind=engine)
-session = Session()
 
 """
 EBD: SQLITE ANNOTATION WRITER
@@ -122,7 +116,23 @@ def run(
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
         retina_masks=False,
+        analysis_db_path=''
 ):
+    """
+    START: ANALYSIS DB
+    """
+
+    assert analysis_db_path != ''
+    engine = create_engine(f"sqlite:///{analysis_db_path}", echo=False)
+
+    Base.metadata.create_all(engine)
+    Session = sessionmaker()
+    Session.configure(bind=engine)
+    session = Session()
+
+    """
+    END: ANALYSIS DB
+    """
 
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -406,6 +416,7 @@ def parse_opt():
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
     parser.add_argument('--retina-masks', action='store_true', help='whether to plot masks in native resolution')
+    parser.add_argument('--analysis_db_path', help='Path to save analysis DB file to')
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     opt.tracking_config = ROOT / 'trackers' / opt.tracking_method / 'configs' / (opt.tracking_method + '.yaml')
