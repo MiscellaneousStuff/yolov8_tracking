@@ -21,3 +21,7 @@ val_utils/
 
 # interactive plots
 *.html
+
+# Ignore source videos and analytics
+*.db
+*.mp4

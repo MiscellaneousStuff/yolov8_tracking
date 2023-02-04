@@ -41,6 +41,51 @@ from yolov8.ultralytics.yolo.utils.plotting import Annotator, colors
 
 from trackers.multi_tracker_zoo import create_tracker
 
+"""
+BEGIN: SQLITE ANNOTATION WRITER
+"""
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, String, Float, Identity
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import text
+Base = declarative_base()
+engine = create_engine("sqlite:///main.db", echo=True)
+
+class Detection(Base):
+    __tablename__ = "detection"
+    id       = Column(Integer, primary_key=True, autoincrement=True)
+    frame    = Column(Integer)
+    bbox_x   = Column(Float)
+    bbox_y   = Column(Float)
+    bbox_w   = Column(Float)
+    bbox_h   = Column(Float)
+    cls      = Column(Float)
+    label    = Column(String)
+    conf     = Column(Float)
+    det_id   = Column(Float)
+    def __repr__(self):
+        return f"""\nDetection
+        id:     {self.id}
+        frame:  {self.frame}
+        bbox_x: {self.bbox_x}
+        bbox_y: {self.bbox_y}
+        bbox_w: {self.bbox_w}
+        bbox_h: {self.bbox_h}
+        cls:    {self.cls}
+        label:  {self.label}
+        conf:   {self.conf}
+        det_id: {self.det_id}"""
+
+Base.metadata.create_all(engine)
+Session = sessionmaker()
+Session.configure(bind=engine)
+session = Session()
+
+"""
+EBD: SQLITE ANNOTATION WRITER
+"""
 
 @torch.no_grad()
 def run(
@@ -239,13 +284,26 @@ def run(
                         id = output[4]
                         cls = output[5]
                         conf = output[6]
+                        
+                        bbox_left = output[0]
+                        bbox_top = output[1]
+                        bbox_w = output[2] - output[0]
+                        bbox_h = output[3] - output[1]
+
+                        detection = Detection(
+                            frame=int(frame_idx + 1),
+                            bbox_x=float(bbox_left),
+                            bbox_y=float(bbox_top),
+                            bbox_w=float(bbox_w),
+                            bbox_h=float(bbox_h),
+                            cls=int(cls),
+                            label=str(names[int(cls)]),
+                            conf=float(conf),
+                            det_id=int(id))
+                        session.add(detection)
+                        session.commit()
 
                         if save_txt:
-                            # to MOT format
-                            bbox_left = output[0]
-                            bbox_top = output[1]
-                            bbox_w = output[2] - output[0]
-                            bbox_h = output[3] - output[1]
                             # Write MOT compliant results to file
                             with open(txt_path + '.txt', 'a') as f:
                                 f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,  # MOT format
