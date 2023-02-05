@@ -52,6 +52,20 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
 
 Base = declarative_base()
+
+class Metadata(Base):
+    __tablename__ = "metadata"
+    id     = Column(Integer, primary_key=True)
+    fps    = Column(Integer)
+    width  = Column(Integer)
+    height = Column(Integer)
+    def __repr__(self):
+        return f"""\Metadata
+        id:     {self.id}
+        fps:    {self.fps}
+        width:  {self.width}
+        height: {self.height}"""
+
 class Detection(Base):
     __tablename__ = "detection"
     id       = Column(Integer, primary_key=True, autoincrement=True)
@@ -361,6 +375,13 @@ def run(
                         h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     else:  # stream
                         fps, w, h = 30, im0.shape[1], im0.shape[0]
+                    metadata = Metadata(
+                        id=1,
+                        fps=fps,
+                        width=w,
+                        height=h)
+                    session.add(metadata)
+                    session.commit()
                     save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
                     vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                 vid_writer[i].write(im0)
